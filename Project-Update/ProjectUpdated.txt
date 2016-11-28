@@ -1,0 +1,383 @@
+@Daniel Canales
+@CSC 11
+@Project
+
+.data @Start 
+
+
+intro:.asciz "Welcome to Generic RPG\nHere you will take on enemies while trying to escape\n"
+intro2:.asciz "You will be able to use items to help you out on your quest\n"
+
+
+goleft:.asciz "You decided to head off left\n"
+gostraight:.asciz "You decided to head off forward\n"
+goright:.asciz "You decided to head off right\n"
+
+
+selectPath:.asciz "Please choose where you would like to go\nLeft(1)\nStraight(2)\nRight(3)\n"
+runaway:.asciz "You decided to flee\n"
+
+
+wolf:.asciz "You were attacked by a wolf\n"
+attackedWolf:.asciz "You decided to attack the wolf\n"
+wolfAttacks:.asciz "The wolf attacked you\n" 
+defending:.asciz "You chose to defend"
+
+
+battleInfo:.asciz "What do you want to do\nAttack(1) Defend(2)\nItem(3) Run(4)\n"
+usedPotion:.asciz "You used a potion\n"
+noPotions:.asciz "You dont have any items\n"
+enemyHP:.asciz "The enemy has %d HP left\n"
+yourHP:.asciz "Your HP:%d\n"
+
+gameOver:.asciz "You Died\nGame Over\n"
+enemyDefeated:.asciz "You defeated the enemy\n"
+
+foundItem:.asciz "You found a potion\n"
+	
+
+scan_path:.asciz "%d"  @Get path from user
+
+
+scan_battleOption:.asciz "%d" @Get battle option
+
+number:.asciz "Random number: %d\n"
+path_chosen:.word 0
+gameWon:.asciz "Congradulations, you escaped\n"
+return:.word 0
+return2:.word 0
+
+
+
+.text
+
+@Will loop back to here instead of main to stay organized
+_SelectPath:
+
+	@Ask User for path choice
+	LDR R0, address_of_selectPath
+	BL printf
+
+	@Get choice and move it into register 
+	LDR R0, address_of_scan_path
+	LDR R1, address_of_path_chosen
+	BL scanf
+
+	@Convert adrress back to number
+	LDR R10, address_of_path_chosen
+	LDR R10, [R10]
+
+	@get random number for event before heading to path
+	BL _getRand
+
+_goLeft:
+	ADD R3, R3, #1
+
+	ADD R8,R8, #1 @Add another step to get out
+	CMP R8, #5    @Needs 5 to win
+	BEQ _win	
+
+	@Let user know what direction they went
+	LDR R0, address_of_goleft
+	BL printf
+
+	@Player gets attacked
+	BL _attacked
+
+_getRand:
+
+	@GET Random Number
+	MOV R0, #0	@Set time(0)
+	BL time
+	BL srand
+
+	BL _loopRand
+
+_loopRand: @Create random 2 digit number
+	
+	BL rand		   @Call Rand
+
+	@R1 = Random Number - Needs to be modded
+	MOV R1, R0, ASR#1  @In case # is negative
+	
+	@Need to mod number
+	BL _modRand
+
+_modRand:
+	@R1 == random number
+	@Get number between 1-3
+	MOV R2, #3	@Change random from 1-3
+	SUB R1, R1,R2
+	
+	CMP R1,R2	@Checks to see if number can still be modded
+	BGE _modRand	@Loop back if mod is done
+
+	BLT _goBacktoPath
+
+@Go back to original path, was placed here because it caused errors in modRand
+_goBacktoPath:
+	
+	CMP R10, #1
+	BEQ _goLeft
+
+	CMP R10, #2
+	BEQ _goStraight
+
+	CMP R10, #3
+	BEQ _goRight
+
+
+_goStraight:
+	ADD R8,R8, #1 @Add another step to get out
+	CMP R8, #5    @Needs 5 to win
+	BEQ _win	
+
+	LDR R0, address_of_gostraight
+	BL printf
+
+	LDR R0, address_of_gostraight
+	BL printf
+
+	BL _getItem
+
+	BL exit
+
+
+_getItem:
+	LDR R0, address_of_foundItem
+	BL printf
+	
+	ADD R6, R6, #1	@Add 1 potion to list
+
+	BL _SelectPath
+
+_goRight:
+	ADD R8,R8, #1 @Add another step to get out
+	CMP R8, #5    @Needs 5 to win
+	BEQ _win	
+
+
+	LDR R0, address_of_goright
+	BL printf
+
+	BL _attacked
+
+	BL exit
+
+_attacked:
+	@R4 = health
+	
+	LDR R0, address_of_wolf
+	BL printf	
+	
+	MOV R5, #50	@Wolf HP
+
+	BL _Battle
+
+_Battle:
+	LDR R0, address_of_battleInfo
+	BL printf
+
+	@Get choice and move it into register 
+	LDR R0, address_of_scan_battleOption
+	LDR R1, address_of_path_chosen
+	BL scanf
+
+	@Convert adrress back to number
+	LDR R10, address_of_path_chosen
+	LDR R10, [R10]
+
+	MOV R1, R10
+	CMP R1, #1
+	BEQ _attackWolf
+
+	CMP R1, #2
+	BEQ _defend
+
+	CMP R1, #3
+	BEQ _useItem
+
+	CMP R1, #4
+	BEQ _run
+
+	BL _exit
+
+_run:
+	LDR R0, address_of_runaway
+	BL printf
+
+	BL _SelectPath
+
+_defend:
+	LDR R0, address_of_defending
+	BL printf
+
+	@Sub hit from wolf/4
+	@Wolf attacks 
+	LDR R0, address_of_wolfAttacks
+	BL printf
+	
+	@Take damage from wolf
+	SUB R4, R4, #5
+	MOV R1, R4
+	CMP R1, #0
+	BLE _GameOver
+
+	LDR R0, address_of_yourHP
+	BL printf
+
+	BL _Battle
+
+_useItem:
+	@CMP R12, #0
+	@BEQ _noItems
+
+	MOV R1, R12
+	LDR R0, address_of_number
+	BL printf
+
+	LDR R0, address_of_usedPotion
+	BL printf
+
+	ADD R4, R4,#20	@Add 20 to player hp
+	
+	@Take damage from wolf
+	SUB R4, R4, #15
+	MOV R1, R4
+	CMP R1, #0
+	BLE _GameOver
+
+	LDR R0, address_of_yourHP
+	BL printf
+
+	SUB R6, R6, #1
+	BL _Battle
+
+_noItems:
+	LDR R0, address_of_noPotions
+	BL printf
+
+	@Take damage from wolf
+	SUB R4, R4, #15
+	MOV R1, R4
+	CMP R1, #0
+	BLE _GameOver
+
+	LDR R0, address_of_yourHP
+	BL printf
+
+	BL _Battle
+
+
+_attackWolf:
+	@Output wolf info
+	LDR R0, address_of_attackedWolf	
+	BL printf
+	
+	@R5 = wolf HP
+	SUB R5, R5, #35	@Sub attack to damge wolf
+
+	MOV R1, R5
+	LDR R0, address_of_enemyHP
+	BL printf
+	
+	@Check to see if wolf died
+	CMP R5, #0
+	BLE _enemyDead
+
+	@Wolf attacks back
+	LDR R0, address_of_wolfAttacks
+	BL printf
+	
+	@Take damage from wolf
+	SUB R4, R4, #15
+	MOV R1, R4
+	CMP R1, #0
+	BLE _GameOver
+
+	LDR R0, address_of_yourHP
+	BL printf
+
+	BL _Battle
+
+_enemyDead:
+	LDR R0, address_of_enemyDefeated
+	BL printf
+
+	BL _SelectPath
+_GameOver:
+	LDR R0, address_of_gameOver
+	BL printf
+	
+	BL _exit
+
+_win:
+	LDR R0, address_of_gameWon
+	BL printf
+	
+	BL _exit
+
+@Start Program
+.global main
+main:
+	@Output into
+	LDR R1, address_of_return
+	STR LR, [R1]
+
+	@DECLARE VARIABLES
+	MOV R4, #100  @R4=100=Player Health
+	MOV R3, #10	  @Replacement for rand since its not working properly
+	MOV R6,#0	  @#of potions
+	MOV R8,#0	  @turns to get out (5)
+	LDR R0, address_of_intro
+	BL printf
+
+	LDR R0, address_of_intro2
+	BL printf
+
+	BL _SelectPath	@Game starts and starts choice
+
+_exit:
+
+	LDR LR, address_of_return
+	LDR LR, [LR]
+	BX LR
+
+	
+
+@Addresses
+address_of_intro:.word intro
+address_of_intro2:.word intro2
+address_of_selectPath:.word selectPath
+address_of_scan_path:.word scan_path
+address_of_path_chosen:.word path_chosen
+address_of_goleft:.word goleft
+address_of_gostraight:.word gostraight
+address_of_goright:.word goright
+address_of_number:.word number
+address_of_wolf:.word wolf
+address_of_battleInfo:.word battleInfo
+address_of_scan_battleOption:.word scan_battleOption
+address_of_attackedWolf:.word attackedWolf
+address_of_wolfAttacks:.word wolfAttacks
+address_of_yourHP:.word yourHP
+address_of_enemyHP:.word enemyHP
+address_of_gameOver:.word gameOver
+address_of_enemyDefeated:.word enemyDefeated
+address_of_foundItem:.word foundItem
+address_of_defending:.word defending
+address_of_usedPotion:.word usedPotion
+address_of_noPotions:.word noPotions
+address_of_runaway:.word runaway
+address_of_gameWon:.word gameWon
+
+@Return addresses
+address_of_return:.word return
+
+@Globals
+.global printf
+.global scanf
+.global srand
+.global rand
+
+
