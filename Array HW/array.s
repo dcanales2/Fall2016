@@ -5,6 +5,7 @@
 .text
 .balign 4
 .global main
+.func
 main:
 	push {LR}
 	
@@ -12,33 +13,36 @@ main:
 	LDR  R9, =a 	@Points to begining of array -> a[0]
 	MOV  R2, #0	@NUMBER R1[R3] = R2
 	MOV  R3, #0
-
+	MOV  R8, #0	@Total Rainfall
 a_loop: 
 	
-	CMP  R3, #10 		@ R3 = 10?
+	CMP  R3, #12 		@ R3 = 10?
 	BEQ  a_done 		@ If yes goto done else continue
 
-input:
-	LDR R0, =getNum		@Ask for number
-	BL printf
 	
+/*
+input:
+	LDR R0, =getNum
+	BL printf
+
 	LDR R0, =scan
 	LDR R1, =value_read
 	BL scanf
 
-	@output
+	@Output
 	LDR R0, =outNum
-	LDR R1, = value_read
+	LDR R1, =value_read
 	LDR R1, [R1]
+	MOV R2, R1
 	BL printf
 
 	BAL aloop_cont
-
+	
+*/
 aloop_cont:
-
-	STR  R2, [R9, +R3]		@ a[#] = R2  # ----------store content of R2 at [r1+r2]	
-	ADD R2, #3		@R2 will be user number	
-	ADD R3, R3, #1		@ R3 + 1
+	STRB R2, [R9, +R3]	@ a[#] = R2  # ----------store content of R2 at [r1+r2]	
+	ADD  R2, #3		@R2 will be user number	
+	ADD  R3, #1		@ R3 + 1
 
 	BAL  a_loop		@ jump back up to start of loop
 
@@ -48,7 +52,7 @@ a_done:
 	@ R0 = pointer to start of array, R1=size or # of elements in the array
 	
 	LDR R0, =a		@ R0 contains base address of array
-	MOV R1, #10		@ R1 contains number of elements in the array
+	MOV R1, #12		@ R1 contains number of elements in the array
 	
 	BL output_array
 	POP {pc}
@@ -61,13 +65,13 @@ output_array:
 oa_loop:
 	
 	CMP R4, R1		@ Is R4 equal to the number of elements to output?
-	
-	
+	BEQ  division		
 	PUSH {r0-R3}		@ Save our current state of registers R0-R3 since printf won't
 
 	LDRB R2, [R0,+R4]	@ R1 contains a[R0+R4]
 	MOV R1, R4		@ output our index as well
-	
+	ADD R8, R8, R2	
+
 	LDR R0, =output_str 	@ R0 contains pointer to our output string
 	BL printf
 	
@@ -76,7 +80,38 @@ oa_loop:
 	BAL oa_loop		@ jump back up to oa_loop for next element
 
 oa_done:
+	MOV R1, R8
+	LDR R0, =output_avg
+	BL printf
+
 	POP {r4,r5,pc}
+
+
+division:
+	@R8 is total Numerator
+	@R1 is 12    Deno
+	MOV R11, #0  @increment counter
+	MOV R0, R8
+
+compare:
+	CMP R8, R1
+	BLT output
+
+	ADD R11, R11, #1
+	SUB R8, R8, R1
+	BAL compare
+output:
+	MOV R1, R11
+	LDR R0, =output_avg
+	BL printf
+
+	POP {R4,R5,PC}
+
+
+
+@Address
+address_getNum: .word getNum
+address_scan:   .word scan
 
 
 .data
@@ -86,8 +121,8 @@ a: .skip 100 // array of 100 bytes (this just reserves us 100 bytes of space, no
 b: .word -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
 
 // data label for output_array function
-output_str: .asciz "a[%d]=%d\n"
-
+output_str: .asciz "Rainfall Month[%d]=%d\n"
+output_avg: .asciz "Average rainfall was %d \n"
 getNum:     .asciz "Please enter the rainfall \n"
 scan:	    .asciz "%d"
 value_read: .word 0
@@ -96,10 +131,6 @@ outNum:     .asciz "Number entered was %d\n"
 @Globals
 .global printf
 .global scanf
-
-
-
-
 
 
 
